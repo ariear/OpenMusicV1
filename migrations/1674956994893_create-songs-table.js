@@ -26,16 +26,18 @@ exports.up = pgm => {
     },
     duration: {
       type: 'INT',
-      notNull: true
+      notNull: false
     },
     albumId: {
       type: 'VARCHAR(50)',
-      notNull: true,
-      references: 'albums'
+      notNull: false
     }
   })
+
+  // pgm.addConstraint('songs', 'fkey_songs_albums', 'FOREIGN KEY("albumId") REFERENCES albums(id)')
 }
 
 exports.down = pgm => {
+  // pgm.dropConstraint('songs', 'fkey_songs_albums')
   pgm.dropTable('songs')
 }

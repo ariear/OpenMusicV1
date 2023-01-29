@@ -1,3 +1,4 @@
+/* eslint-disable quotes */
 const { Pool } = require('pg')
 const { nanoid } = require('nanoid')
 const InvariantError = require('../../exceptions/InvariantError')
@@ -14,7 +15,7 @@ class SongsService {
 
     const query = {
       text: 'INSERT INTO songs VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      values: [id, title, year, genre, performer, duration, albumId]
+      values: [id, title, year, performer, genre, duration, albumId]
     }
 
     const result = await this._pool.query(query)
@@ -26,8 +27,31 @@ class SongsService {
     return result.rows[0].id
   }
 
-  async getSongs () {
-    const result = await this._pool.query('SELECT * FROM songs')
+  async getSongs ({ title, performer }) {
+    let preText = ''
+    const preValues = []
+
+    if (title) {
+      preText = ` WHERE title ILIKE '%' ||$1||'%'`
+      preValues.push(title)
+    }
+
+    if (!title && performer) {
+      preText = ` WHERE performer ILIKE '%' ||$1|| '%'`
+      preValues.push(performer)
+    }
+
+    if (title && performer) {
+      preText += ` AND performer ILIKE '%' ||$2|| '%'`
+      preValues.push(performer)
+    }
+
+    const query = {
+      text: `SELECT id, title, performer FROM songs ${preText}`,
+      values: preValues
+    }
+
+    const result = await this._pool.query(query)
     return result.rows.map(mapListSongToModel)
   }
 
@@ -46,9 +70,17 @@ class SongsService {
   }
 
   async editSongById (id, { title, year, genre, performer, duration, albumId }) {
-    const query = {
-      text: 'UPDATE songs SET title = $1, year = $2, genre = $3, performer = $4, duration = $5, albumId = $6 WHERE id = $7 RETURNING id',
-      values: [title, year, genre, performer, duration, albumId, id]
+    let query = {}
+    if (albumId == null) {
+      query = {
+        text: 'UPDATE songs SET title = $1, year = $2, performer = $3, genre = $4, duration = $5 WHERE id = $6 RETURNING id',
+        values: [title, year, performer, genre, duration, id]
+      }
+    } else {
+      query = {
+        text: 'UPDATE songs SET title = $1, year = $2, performer = $3, genre = $4, duration = $5, albumId = $6 WHERE id = $7 RETURNING id',
+        values: [title, year, performer, genre, duration, albumId, id]
+      }
     }
 
     const result = await this._pool.query(query)
